@@ -47,8 +47,60 @@ The action allows authentication either via `Password` or `Private Key Pair`.
 
 If you are using `Password` authentication, provide `SF_PASSWORD` and ensure that `SF_PRIVATE_KEY` and `SF_PRIVATE_KEY_FILE_PWD` are not provided as inputs.
 
+
+```
+name: Call CloudMile's schemachange action w Password
+
+on:
+    workflow_dispatch:
+
+jobs:
+    hello_world_job:
+        runs-on: ubuntu-latest
+        name: Call a schemachange composite action
+        steps:
+            - uses: actions/checkout@v4
+            - id: schemachange
+              uses: CloudMile-Inc/schemachange-action@SHA
+              with:
+                  DRY_RUN: --dry-run
+                  SF_DATABASE: SNOWFLAKE_DATABASE #Provide the Snowflake database name
+                  LOCATION_OF_DDL_SCRIPTS: PATH_TO_SCRIPTS
+                  SF_ACCOUNT: SNOWFLAKE_ACCOUNT_NAME
+                  SF_USERNAME: SNOWFLAKE_USER
+                  SF_ROLE: SNOWFLAKE_ROLE
+                  SF_WAREHOUSE: SNOWFLAKE_WAREHOUSE
+                  SF_PASSWORD: SNOWFLAKE USER PASSWORD
+```
+
 ### Private Key Pair 
+
+The private key pair is generated according to the following Snowflake [documentation](https://docs.snowflake.com/en/user-guide/key-pair-auth)
 
 If you are using `Private Key Pair` authentication, provide `SF_PRIVATE_KEY` and `SF_PRIVATE_KEY_FILE_PWD` as inputs.
 
-The private key pair is generated according to the following Snowflake [documentation](https://docs.snowflake.com/en/user-guide/key-pair-auth)
+```
+name: Call CloudMile's schemachange action w Key
+
+on:
+    workflow_dispatch:
+
+jobs:
+    hello_world_job:
+        runs-on: ubuntu-latest
+        name: Call a schemachange composite action
+        steps:
+            - uses: actions/checkout@v4
+            - id: schemachange
+              uses: CloudMile-Inc/schemachange-action@SHA
+              with:
+                  DRY_RUN: --dry-run
+                  SF_DATABASE: SNOWFLAKE_DATABASE #Provide the Snowflake database name
+                  LOCATION_OF_DDL_SCRIPTS: PATH_TO_SCRIPTS
+                  SF_ACCOUNT: SNOWFLAKE_ACCOUNT_NAME
+                  SF_USERNAME: SNOWFLAKE_USER
+                  SF_ROLE: SNOWFLAKE_ROLE
+                  SF_WAREHOUSE: SNOWFLAKE_WAREHOUSE
+                  SF_PRIVATE_KEY: SNOWFLAKE_PRIVATE_KEY
+                  SF_PRIVATE_KEY_FILE_PWD: SNOWFLAKE_PRIVATE_KEY_FILE_PASSWORD
+```
