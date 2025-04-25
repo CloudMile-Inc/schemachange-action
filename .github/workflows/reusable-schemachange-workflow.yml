@@ -1,0 +1,124 @@
+name: snowflake-devops-demo
+
+# Controls when the action will run.
+on:
+  workflow_call:
+    inputs:
+      DRY_RUN:
+        description: 'Input "--dry-run" to run in dry run mode.'
+        required: false
+        type: string
+        default: ""
+      SF_DATABASE:
+        description: "Snowflake Database."
+        required: true
+        type: string
+      LOCATION_OF_DDL_SCRIPTS:
+        description: "Dir in the repo which contains the DDL scripts."
+        required: true
+        type: string
+      environment:
+        description: "Environment to run job in"
+        required: true
+        type: string
+    secrets:
+      SF_ACCOUNT:
+        description: "Snowflake Account."
+        required: true
+      SF_USERNAME:
+        description: "Snowflake User."
+        required: true
+      SF_ROLE:
+        description: "Snowflake Role."
+        required: true
+      SF_WAREHOUSE:
+        description: "Snowflake Warehouse."
+        required: true
+      SF_PASSWORD:
+        description: "Snowflake User Password."
+        required: false
+      SF_PRIVATE_KEY:
+        description: "Snowflake private key content."
+        required: false
+      SF_PRIVATE_KEY_FILE_PWD:
+        description: "Snowflake private key password."
+        required: false
+
+jobs:
+  deploy-snowflake-changes-job:
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    env:
+      SF_ACCOUNT: ${{ secrets.SF_ACCOUNT }}
+      SF_USERNAME: ${{ secrets.SF_USERNAME }}
+      SF_ROLE: ${{ secrets.SF_ROLE }}
+      SF_WAREHOUSE: ${{ secrets.SF_WAREHOUSE }}
+      SF_DATABASE: ${{ inputs.SF_DATABASE }}
+      SF_PASSWORD: ${{ secrets.SF_PASSWORD }}
+      SF_PRIVATE_KEY: ${{ secrets.SF_PRIVATE_KEY }}
+      SF_PRIVATE_KEY_FILE: ./key.p8
+      SF_PRIVATE_KEY_FILE_PWD: ${{ secrets.SF_PRIVATE_KEY_FILE_PWD }}
+
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Use Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: 3.12
+
+      - name: Create and populate connections.toml
+        run: |
+          # If key is provided create key file
+          if [[ -n ${SF_PRIVATE_KEY} ]]; then
+            echo "Creating Private Key File"
+            echo "${SF_PRIVATE_KEY}"  > ./key.p8
+            chmod 600 ./key.p8
+          fi
+
+          touch ./connections.toml
+          echo [default] >> ./connections.toml
+          echo account = \"${SF_ACCOUNT}\" >> ./connections.toml
+          echo user = \"${SF_USERNAME}\" >> ./connections.toml
+          echo role = \"${SF_ROLE}\" >> ./connections.toml
+          echo warehouse = \"${SF_WAREHOUSE}\" >> ./connections.toml
+          echo database = \"${SF_DATABASE}\" >> ./connections.toml
+          echo password = \"${SF_PASSWORD}\" >> ./connections.toml
+          # If key is provided create key file
+          if [[ -n ${SF_PRIVATE_KEY} ]]; then
+            echo private_key_file = \"${SF_PRIVATE_KEY_FILE}\" >> ./connections.toml
+            echo private_key_file_pwd = \"${SF_PRIVATE_KEY_FILE_PWD}\" >> ./connections.toml
+          fi
+          echo "cat connections.toml"
+          cat ./connections.toml
+
+      - name: Install dependencies
+        shell: bash
+        run: |
+          echo "GITHUB_WORKSPACE: $GITHUB_WORKSPACE"
+          python --version
+          echo "Step 1: Installing schemachange"
+          pip install schemachange
+
+      - name: "Deploying Schemachange on database: ${{ inputs.SF_DATABASE }}"
+        shell: bash
+        run: |
+          echo "Step 2: Deploying schemachange on database: ${{ inputs.SF_DATABASE }}"
+          schemachange \
+            --root-folder ./${{ inputs.LOCATION_OF_DDL_SCRIPTS }} \
+            --connections-file-path ./connections.toml \
+            --connection-name default \
+            --change-history-table ${{ inputs.SF_DATABASE }}.SCHEMACHANGE.CHANGE_HISTORY \
+            --create-change-history-table \
+            ${{ inputs.DRY_RUN }} \
+            --verbose 
+            RESULT=$?
+
+          if [ $RESULT -eq 0 ]; then
+              echo "Deployment Completed!"
+          else
+              echo "Deployment Failed."
+          fi 
